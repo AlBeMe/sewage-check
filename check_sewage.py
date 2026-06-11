@@ -104,6 +104,9 @@ def classify_status(monitor):
     if alert_status == "Offline":
         return "OFFLINE"
 
+    if alert_status == "Discharging":
+        return "ACTIVE"
+
     stop_str = monitor.get("most_recent_discharge_alert_stop")
     if not stop_str:
         return "UNKNOWN"
@@ -112,9 +115,6 @@ def classify_status(monitor):
         stop_dt = datetime.fromisoformat(stop_str.replace("Z", "+00:00"))
     except (ValueError, TypeError):
         return "UNKNOWN"
-
-    if alert_status == "Discharging":
-        return "ACTIVE"
 
     now = datetime.now(timezone.utc)
     if now - stop_dt < timedelta(hours=48):
