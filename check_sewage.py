@@ -1,10 +1,10 @@
 import sys
-import os
 import math
-from datetime import datetime, timedelta, timezone
 
 import requests
-from dotenv import load_dotenv
+
+
+TW_STATUS_URL = "https://api.thameswater.co.uk/opendata/v2/discharge/status"
 
 
 def geocode_postcode(postcode):
@@ -18,7 +18,6 @@ def geocode_postcode(postcode):
     return result["latitude"], result["longitude"]
 
 
-# OSGB36 datum constants (Airy 1830 ellipsoid)
 A = 6377563.396
 B = 6356256.909
 E2 = (A**2 - B**2) / A**2
@@ -64,17 +63,8 @@ def latlng_to_osgb36(lat, lng):
     return easting, northing
 
 
-TW_API_BASE = "https://prod-tw-opendata-app.uk-e1.cloudhub.io"
-TW_ENDPOINT = "/data/STE/v1/DischargeCurrentStatus"
-
-
-def fetch_edm_monitors(client_id, client_secret):
-    url = f"{TW_API_BASE}{TW_ENDPOINT}"
-    resp = requests.get(
-        url,
-        headers={"client_id": client_id, "client_secret": client_secret},
-        timeout=30,
-    )
+def fetch_edm_monitors():
+    resp = requests.get(TW_STATUS_URL, timeout=30)
     if resp.status_code != 200:
         print(f"Error: Thames Water API returned {resp.status_code}", file=sys.stderr)
         print(resp.text, file=sys.stderr)
@@ -99,30 +89,6 @@ def matches_watercourse(watercourse):
     return "kennet" in wc or "k&a" in wc or "avon" in wc
 
 
-def classify_status(monitor):
-    alert_status = monitor.get("alert_status", "")
-    if alert_status == "Offline":
-        return "OFFLINE"
-
-    if alert_status == "Discharging":
-        return "ACTIVE"
-
-    stop_str = monitor.get("most_recent_discharge_alert_stop")
-    if not stop_str:
-        return "UNKNOWN"
-
-    try:
-        stop_dt = datetime.fromisoformat(stop_str.replace("Z", "+00:00"))
-    except (ValueError, TypeError):
-        return "UNKNOWN"
-
-    now = datetime.now(timezone.utc)
-    if now - stop_dt < timedelta(hours=48):
-        return "RECENT"
-
-    return "CLEAR"
-
-
 def main():
     if len(sys.argv) < 2 or len(sys.argv) > 3:
         print("Usage: python check_sewage.py <postcode> [distance_miles]", file=sys.stderr)
@@ -131,24 +97,16 @@ def main():
     postcode = sys.argv[1]
     max_distance = float(sys.argv[2]) if len(sys.argv) == 3 else 5.0
 
-    load_dotenv()
-    client_id = os.getenv("CLIENT_ID")
-    client_secret = os.getenv("CLIENT_SECRET")
-    if not client_id or not client_secret:
-        print("Error: CLIENT_ID and CLIENT_SECRET must be set in .env file", file=sys.stderr)
-        print("See .env.example for the format. Register at https://data.thameswater.co.uk/s/", file=sys.stderr)
-        sys.exit(1)
-
     lat, lng = geocode_postcode(postcode)
     postcode_e, postcode_n = latlng_to_osgb36(lat, lng)
 
-    monitors = fetch_edm_monitors(client_id, client_secret)
+    monitors = fetch_edm_monitors()
 
     results = []
     for m in monitors:
         x = m.get("x")
         y = m.get("y")
-        wc = m.get("receiving_water_course", "")
+        wc = m.get("receivingWaterCourse", "")
         if x is None or y is None:
             continue
 
@@ -159,9 +117,22 @@ def main():
         if not matches_watercourse(wc):
             continue
 
-        status = classify_status(m)
-        stop_str = m.get("most_recent_discharge_alert_stop", "")
-        results.append((m.get("location_name", "Unknown"), wc, status, stop_str or "-", dist))
+        alert = m.get("alertStatus", "")
+        past48 = m.get("alertPast48Hours", False)
+        if alert == "Discharging":
+            status = "ACTIVE"
+            last_dt = m.get("mostRecentDischargeAlertStart", "")
+        elif alert == "Offline":
+            status = "OFFLINE"
+            last_dt = m.get("mostRecentDischargeAlertStop", "")
+        elif past48:
+            status = "RECENT"
+            last_dt = m.get("mostRecentDischargeAlertStop", "")
+        else:
+            status = "CLEAR"
+            last_dt = m.get("mostRecentDischargeAlertStop", "")
+
+        results.append((m.get("locationName", "Unknown"), wc, status, last_dt or "-", dist))
 
     if not results:
         print(f"No matching monitors found within {max_distance} miles of {postcode}.")
@@ -172,18 +143,18 @@ def main():
         "RECENT": "\U0001f7e1 Recent (last 48h)",
         "CLEAR": "\U0001f7e2 No recent discharge",
         "OFFLINE": "\u26ab Monitor offline",
-        "UNKNOWN": "\u26aa Status unknown",
     }
 
     print(f"Checking sewage outflows within {max_distance} miles of {postcode}...\n")
-    print(f"\U0001f4cd Monitors on Kennet & Avon Canal / River Avon:\n")
+    print("\U0001f4cd Monitors on Kennet & Avon Canal / River Avon:\n")
     header = f"  {'Location':<22} {'Watercourse':<22} {'Status':<25} {'Last Discharge':<22} {'Distance':<10}"
     sep = "  " + "-" * (len(header) - 2)
     print(header)
     print(sep)
     for name, wc, status, last_dt, dist in results:
         icon_status = status_icons.get(status, status)
-        print(f"  {name:<22} {wc:<22} {icon_status:<25} {last_dt[:19]:<22} {dist:.1f} mi")
+        dt = last_dt[:19] if last_dt != "-" else "-"
+        print(f"  {name:<22} {wc:<22} {icon_status:<25} {dt:<22} {dist:.1f} mi")
 
 
 if __name__ == "__main__":
