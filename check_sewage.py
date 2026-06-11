@@ -1,3 +1,4 @@
+import os
 import sys
 import math
 
@@ -5,6 +6,11 @@ import requests
 
 
 TW_STATUS_URL = "https://api.thameswater.co.uk/opendata/v2/discharge/status"
+W3W_API_URL = "https://api.what3words.com/v3/convert-to-coordinates"
+
+
+def is_w3w(location):
+    return "." in location or "/" in location
 
 
 def geocode_postcode(postcode):
@@ -16,6 +22,27 @@ def geocode_postcode(postcode):
     data = resp.json()
     result = data.get("result", {})
     return result["latitude"], result["longitude"]
+
+
+def geocode_w3w(words):
+    api_key = os.environ.get("W3W_API_KEY")
+    if not api_key:
+        print("Error: W3W_API_KEY environment variable not set", file=sys.stderr)
+        print("Get a free key at https://what3words.com/select-plan?section=free", file=sys.stderr)
+        sys.exit(1)
+    formatted = words.replace("/", ".").strip()
+    resp = requests.get(
+        W3W_API_URL,
+        params={"words": formatted, "key": api_key},
+        timeout=10,
+    )
+    if resp.status_code != 200:
+        print(f"Error: what3words returned {resp.status_code} — check the words and API key", file=sys.stderr)
+        print(resp.text, file=sys.stderr)
+        sys.exit(1)
+    data = resp.json()
+    coords = data.get("coordinates", {})
+    return coords["lat"], coords["lng"]
 
 
 A = 6377563.396
@@ -91,13 +118,16 @@ def matches_watercourse(watercourse):
 
 def main():
     if len(sys.argv) < 2 or len(sys.argv) > 3:
-        print("Usage: python check_sewage.py <postcode> [distance_miles]", file=sys.stderr)
+        print("Usage: python check_sewage.py <postcode|what3words> [distance_miles]", file=sys.stderr)
         sys.exit(1)
 
-    postcode = sys.argv[1]
+    location = sys.argv[1]
     max_distance = float(sys.argv[2]) if len(sys.argv) == 3 else 5.0
 
-    lat, lng = geocode_postcode(postcode)
+    if is_w3w(location):
+        lat, lng = geocode_w3w(location)
+    else:
+        lat, lng = geocode_postcode(location)
     postcode_e, postcode_n = latlng_to_osgb36(lat, lng)
 
     monitors = fetch_edm_monitors()
@@ -135,7 +165,7 @@ def main():
         results.append((m.get("locationName", "Unknown"), wc, status, last_dt or "-", dist))
 
     if not results:
-        print(f"No matching monitors found within {max_distance} miles of {postcode}.")
+        print(f"No matching monitors found within {max_distance} miles of {location}.")
         sys.exit(0)
 
     status_icons = {
@@ -145,7 +175,7 @@ def main():
         "OFFLINE": "\u26ab Monitor offline",
     }
 
-    print(f"Checking sewage outflows within {max_distance} miles of {postcode}...\n")
+    print(f"Checking sewage outflows within {max_distance} miles of {location}...\n")
     print("\U0001f4cd Monitors on Kennet & Avon Canal / River Avon:\n")
     header = f"  {'Location':<22} {'Watercourse':<22} {'Status':<25} {'Last Discharge':<22} {'Distance':<10}"
     sep = "  " + "-" * (len(header) - 2)
