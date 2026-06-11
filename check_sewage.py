@@ -3,6 +3,7 @@ import sys
 import math
 
 import requests
+from dotenv import load_dotenv
 
 
 TW_STATUS_URL = "https://api.thameswater.co.uk/opendata/v2/discharge/status"
@@ -117,6 +118,8 @@ def matches_watercourse(watercourse):
 
 
 def main():
+    load_dotenv()
+
     if len(sys.argv) < 2 or len(sys.argv) > 3:
         print("Usage: python check_sewage.py <postcode|what3words> [distance_miles]", file=sys.stderr)
         sys.exit(1)
