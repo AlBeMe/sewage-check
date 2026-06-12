@@ -28,9 +28,8 @@ def check():
     results, error = check_location(q, max_distance)
 
     resp = make_response(render_template("results.html", results=results, error=error, location=q, radius=max_distance))
-    if not error:
-        resp.set_cookie("last_location", q, max_age=60*60*24*365)
-        resp.set_cookie("last_radius", str(max_distance), max_age=60*60*24*365)
+    resp.set_cookie("last_location", q, max_age=60*60*24*365, samesite="Lax", secure=True)
+    resp.set_cookie("last_radius", str(max_distance), max_age=60*60*24*365, samesite="Lax", secure=True)
     return resp
 
 
