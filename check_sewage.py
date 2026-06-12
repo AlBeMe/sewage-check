@@ -1,49 +1,40 @@
+import json
 import os
 import sys
 import math
 
 import requests
-from dotenv import load_dotenv
 
 
 TW_STATUS_URL = "https://api.thameswater.co.uk/opendata/v2/discharge/status"
-W3W_API_URL = "https://api.what3words.com/v3/convert-to-coordinates"
 
 
-def is_w3w(location):
-    return "." in location or "/" in location
+def is_latlng(location):
+    stripped = location.strip().replace(" ", "")
+    return "," in stripped and stripped.count(",") == 1
+
+
+def parse_latlng(location):
+    parts = location.replace(" ", "").split(",")
+    try:
+        lat, lng = float(parts[0]), float(parts[1])
+    except ValueError:
+        raise ValueError(f"Error: could not parse '{location}' as lat,lng coordinates")
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Error: latitude {lat} out of range (-90 to 90)")
+    if not (-180 <= lng <= 180):
+        raise ValueError(f"Error: longitude {lng} out of range (-180 to 180)")
+    return lat, lng
 
 
 def geocode_postcode(postcode):
     url = f"https://api.postcodes.io/postcodes/{postcode.strip().replace(' ', '')}"
     resp = requests.get(url, timeout=10)
     if resp.status_code != 200:
-        print(f"Error: Invalid postcode or postcodes.io returned {resp.status_code}", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError(f"Error: Invalid postcode or postcodes.io returned {resp.status_code}")
     data = resp.json()
     result = data.get("result", {})
     return result["latitude"], result["longitude"]
-
-
-def geocode_w3w(words):
-    api_key = os.environ.get("W3W_API_KEY")
-    if not api_key:
-        print("Error: W3W_API_KEY environment variable not set", file=sys.stderr)
-        print("Get a free key at https://what3words.com/select-plan?section=free", file=sys.stderr)
-        sys.exit(1)
-    formatted = words.replace("/", ".").strip()
-    resp = requests.get(
-        W3W_API_URL,
-        params={"words": formatted, "key": api_key},
-        timeout=10,
-    )
-    if resp.status_code != 200:
-        print(f"Error: what3words returned {resp.status_code} — check the words and API key", file=sys.stderr)
-        print(resp.text, file=sys.stderr)
-        sys.exit(1)
-    data = resp.json()
-    coords = data.get("coordinates", {})
-    return coords["lat"], coords["lng"]
 
 
 A = 6377563.396
@@ -94,14 +85,11 @@ def latlng_to_osgb36(lat, lng):
 def fetch_edm_monitors():
     resp = requests.get(TW_STATUS_URL, timeout=30)
     if resp.status_code != 200:
-        print(f"Error: Thames Water API returned {resp.status_code}", file=sys.stderr)
-        print(resp.text, file=sys.stderr)
-        sys.exit(1)
+        raise ValueError(f"Error: Thames Water API returned {resp.status_code}\n{resp.text}")
     data = resp.json()
     items = data.get("items", [])
     if not items:
-        print("Error: No EDM monitor data returned", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError("Error: No EDM monitor data returned")
     return items
 
 
@@ -114,26 +102,46 @@ def matches_watercourse(watercourse):
     if not watercourse:
         return False
     wc = watercourse.lower()
-    return "kennet" in wc or "k&a" in wc or "avon" in wc
+    return "kennet" in wc or "k&a" in wc or "avon" in wc or "pang" in wc
 
 
-def main():
-    load_dotenv()
+def _cache_path():
+    if getattr(sys, "frozen", False):
+        return os.path.join(os.path.dirname(sys.executable), "cache.json")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache.json")
 
-    if len(sys.argv) < 2 or len(sys.argv) > 3:
-        print("Usage: python check_sewage.py <postcode|what3words> [distance_miles]", file=sys.stderr)
-        sys.exit(1)
 
-    location = sys.argv[1]
-    max_distance = float(sys.argv[2]) if len(sys.argv) == 3 else 5.0
+def load_cache():
+    try:
+        with open(_cache_path()) as f:
+            return json.load(f)
+    except Exception:
+        return {}
 
-    if is_w3w(location):
-        lat, lng = geocode_w3w(location)
-    else:
-        lat, lng = geocode_postcode(location)
+
+def save_cache(location, distance):
+    try:
+        with open(_cache_path(), "w") as f:
+            json.dump({"location": location, "distance": distance}, f)
+    except Exception:
+        pass
+
+
+def check_location(location, max_distance=5.0):
+    try:
+        if is_latlng(location):
+            lat, lng = parse_latlng(location)
+        else:
+            lat, lng = geocode_postcode(location)
+    except ValueError as e:
+        return [], str(e)
+
     postcode_e, postcode_n = latlng_to_osgb36(lat, lng)
 
-    monitors = fetch_edm_monitors()
+    try:
+        monitors = fetch_edm_monitors()
+    except ValueError as e:
+        return [], str(e)
 
     results = []
     for m in monitors:
@@ -167,8 +175,46 @@ def main():
 
         results.append((m.get("locationName", "Unknown"), wc, status, last_dt or "-", dist))
 
+    return results, None
+
+
+def main():
+    cache = load_cache()
+    distance = cache.get("distance", 50)
+    location = cache.get("location", "SN8 2BG")
+
+    if len(sys.argv) == 2:
+        val = sys.argv[1].strip()
+        if val:
+            try:
+                distance = int(val)
+            except ValueError:
+                location = val
+    elif len(sys.argv) == 3:
+        d = sys.argv[1].strip()
+        l = sys.argv[2].strip()
+        if d:
+            try:
+                distance = int(d)
+            except ValueError:
+                print("Error: first argument must be a number (distance in miles)", file=sys.stderr)
+                sys.exit(1)
+        if l:
+            location = l
+    elif len(sys.argv) > 3:
+        print("Usage: python check_sewage.py [distance] [postcode|lat,lng]", file=sys.stderr)
+        sys.exit(1)
+
+    results, error = check_location(location, distance)
+
+    if error:
+        print(error, file=sys.stderr)
+        sys.exit(1)
+
+    save_cache(location, distance)
+
     if not results:
-        print(f"No matching monitors found within {max_distance} miles of {location}.")
+        print(f"No matching monitors found within {distance} miles of {location}.")
         sys.exit(0)
 
     status_icons = {
@@ -178,16 +224,16 @@ def main():
         "OFFLINE": "\u26ab Monitor offline",
     }
 
-    print(f"Checking sewage outflows within {max_distance} miles of {location}...\n")
+    print(f"Checking sewage outflows within {distance} miles of {location}...\n")
     print("\U0001f4cd Monitors on Kennet & Avon Canal / River Avon:\n")
-    header = f"  {'Location':<22} {'Watercourse':<22} {'Status':<25} {'Last Discharge':<22} {'Distance':<10}"
+    header = f"  {'Location':<25} {'Watercourse':<22} {'Status':<25} {'Last Discharge':<22} {'Distance':<10}"
     sep = "  " + "-" * (len(header) - 2)
     print(header)
     print(sep)
     for name, wc, status, last_dt, dist in results:
         icon_status = status_icons.get(status, status)
         dt = last_dt[:19] if last_dt != "-" else "-"
-        print(f"  {name:<22} {wc:<22} {icon_status:<25} {dt:<22} {dist:.1f} mi")
+        print(f"  {name:<25} {wc:<22} {icon_status:<25} {dt:<22} {dist:.1f} mi")
 
 
 if __name__ == "__main__":

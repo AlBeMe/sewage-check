@@ -1,3 +1,8 @@
 __pycache__/
 *.pyc
 .env
+cache.json
+build/
+dist/
+*.spec
+token.txt

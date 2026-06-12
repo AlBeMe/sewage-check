@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sewage Check Results</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; color: #333; line-height: 1.5; }
+  .container { max-width: 500px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+  .search-info { margin-bottom: 1rem; color: #666; }
+  .error { padding: 12px; background: #fff0f0; border: 1px solid #ffc0c0; border-radius: 8px; color: #c00; margin-bottom: 1rem; }
+  .no-results { padding: 12px; background: #fff8e0; border: 1px solid #f0d060; border-radius: 8px; margin-bottom: 1rem; }
+  .card { background: #fff; border-radius: 8px; padding: 14px; margin-bottom: 12px; border-left: 5px solid #ccc; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .card.active { border-left-color: #e00; }
+  .card.recent { border-left-color: #e90; }
+  .card.clear { border-left-color: #090; }
+  .card.offline { border-left-color: #666; }
+  .card h3 { font-size: 1rem; margin-bottom: 4px; }
+  .card .meta { font-size: 0.85rem; color: #888; }
+  .card .meta span { display: inline-block; margin-right: 12px; }
+  .status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; color: #fff; margin-top: 6px; }
+  .status-active { background: #e00; }
+  .status-recent { background: #e90; }
+  .status-clear { background: #090; }
+  .status-offline { background: #666; }
+  .back-link { display: block; text-align: center; margin-top: 1.5rem; color: #007bff; text-decoration: none; }
+  .back-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Sewage Check</h1>
+  <div class="search-info">Results for <strong>{{ location }}</strong> within <strong>{{ radius }} miles</strong></div>
+
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% elif results|length == 0 %}
+  <div class="no-results">No matching monitors found within {{ radius }} miles of {{ location }}.</div>
+  {% else %}
+  {% for name, wc, status, last_dt, dist in results %}
+  <div class="card {{ status.lower() }}">
+    <h3>{{ name }}</h3>
+    <div class="meta">
+      <span>Watercourse: {{ wc }}</span><br>
+      <span>Distance: {{ "%.1f"|format(dist) }} mi</span>
+    </div>
+    <div>
+      <span class="status-badge status-{{ status.lower() }}">
+        {% if status == "ACTIVE" %}Active Discharge{% elif status == "RECENT" %}Recent (48h){% elif status == "CLEAR" %}No recent discharge{% else %}Offline{% endif %}
+      </span>
+    </div>
+    <div class="meta" style="margin-top: 4px;">Last: {{ last_dt[:19] if last_dt != "-" else "-" }}</div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <a href="/" class="back-link">Check another location</a>
+</div>
+</body>
+</html>
