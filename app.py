@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    last_location = request.cookies.get("last_location", "SN8 2BG")
+    last_location = request.cookies.get("last_location", "")
     last_radius = request.cookies.get("last_radius", "5")
     return render_template("index.html", last_location=last_location, last_radius=last_radius)
 
