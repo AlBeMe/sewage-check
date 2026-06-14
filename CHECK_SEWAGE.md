@@ -22,14 +22,6 @@ This mobile-friendly web app checks Thames Water sewage overflow (EDM) discharge
 
 Your location and radius are saved in a browser cookie. Next time you visit the page, the form is already filled in — just tap **Check** again.
 
-### Getting coordinates from Google Maps
-
-- Open Google Maps on your phone
-- Long-press a spot on the map
-- Swipe up the info panel
-- Copy the numbers (e.g. `51.423770,-1.717683`)
-- Paste them into the location field
-
 ### Add to home screen (optional)
 
 For one-tap access from your phone:
@@ -37,12 +29,20 @@ For one-tap access from your phone:
 **iPhone (Safari):**
 1. Tap the Share button (square with arrow)
 2. Scroll down and tap **Add to Home Screen**
-3. Name it "Sewage" and tap **Add**
+3. Name it "e.g. Sewage" and tap **Add**
 
 **Android (Chrome):**
 1. Tap the three-dot menu
 2. Tap **Add to Home screen**
 3. Name it and tap **Add**
+
+### Getting coordinates from Google Maps
+
+- Open Google Maps on your phone
+- Long-press a spot on the map
+- Swipe up the info panel
+- Copy the numbers (e.g. `51.423770,-1.717683`)
+- Paste them into the location field
 
 ---
 
@@ -63,8 +63,17 @@ Each card also shows:
 - The **distance** from your search location
 - The **last alert timestamp**
 
+### Links at the bottom of the results
+
+After the results (or error message) two links appear:
+
+- **"Check another location"** — returns to the search form to run a new query. Stays within the sewage check site.
+- **"Load PET Survey Form"** — navigates away from the sewage check site to an external Google Form. The form replaces the page in the same tab.
+
 ---
 
 ## About the data
 
-The app uses the Thames Water Open Data API (keyless, free). Data is provided directly by Thames Water — check their website for official bathing water advice. The app is not affiliated with or endorsed by Thames Water.
+The app uses the Thames Water Open Data API (keyless, free). 
+Data is provided directly by Thames Water — check their website for official bathing water advice. 
+The app is not affiliated with or endorsed by Thames Water.
