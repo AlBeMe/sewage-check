@@ -34,8 +34,9 @@
     <button type="submit">Check</button>
   </form>
   <div class="instructions">
-    <p><strong>Add to Home Screen (optional)</strong><br>
-    Tap Share → Add to Home Screen for one-tap access</p>
+    <p><strong>Install as an app</strong><br>
+    <button id="install-btn" style="display:none; background:#4caf50; margin-top:6px;">Install App</button>
+    <span class="install-fallback">On iPhone: Share → Add to Home Screen</span></p>
 
     <p><strong>Search with a postcode</strong><br>
     Postcode: e.g. SN8 2BG or SN82BG (space optional)</p>
@@ -53,5 +54,25 @@
     Red = discharging | Amber = recent 48h | Green = clear | Grey = offline</p>
   </div>
 </div>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/static/sw.js");
+}
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById("install-btn");
+  if (btn) {
+    btn.style.display = "block";
+    btn.onclick = async () => {
+      btn.style.display = "none";
+      deferredPrompt.prompt();
+      const result = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    };
+  }
+});
+</script>
 </body>
 </html>
