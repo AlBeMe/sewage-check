@@ -1,6 +1,6 @@
 {
-  "name": "Sewage Check",
-  "short_name": "Sewage",
+  "name": "EDM Check",
+  "short_name": "EDM Check",
   "description": "Thames Water sewage overflow monitor near Kennet & Avon Canal",
   "start_url": "/",
   "display": "standalone",
