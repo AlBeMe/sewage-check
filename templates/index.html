@@ -35,7 +35,8 @@
   </form>
   <div class="instructions">
     <p><strong>Add to Home Screen</strong><br>
-    Android: Chrome menu → Install app &nbsp;|&nbsp; iPhone: Share → Add to Home Screen</p>
+    <a href="#" id="install-link" style="display:none; color:#007bff;">Install App</a>
+    <span id="install-text" style="font-size:0.85rem;">Android: Chrome menu → Install app &nbsp;|&nbsp; iPhone: Share → Add to Home Screen</span></p>
 
     <p><strong>Search with a postcode</strong><br>
     Postcode: e.g. SN8 2BG or SN82BG (space optional)</p>
@@ -53,5 +54,28 @@
     Red = discharging | Amber = recent 48h | Green = clear | Grey = offline</p>
   </div>
 </div>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js");
+}
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const link = document.getElementById("install-link");
+  const text = document.getElementById("install-text");
+  if (link && text) {
+    link.style.display = "inline";
+    text.style.display = "none";
+    link.onclick = async (ev) => {
+      ev.preventDefault();
+      deferredPrompt.prompt();
+      const result = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      link.style.display = "none";
+    };
+  }
+});
+</script>
 </body>
 </html>

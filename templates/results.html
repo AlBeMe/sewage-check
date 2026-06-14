@@ -60,8 +60,32 @@
   {% endif %}
 
   <a href="/" class="back-link">Check another location</a>
-  <a href="https://docs.google.com/forms/d/e/1FAIpQLSeAfcQNN1GOZ6CQxh3QlNAq_0JsFwyx4Li5Bq0j2XqSyEzbVg/viewform?pli=1" class="back-link" style="margin-top: 0.5rem;">Load PET Survey Form</a>
-  <div class="back-link" style="margin-top: 0.5rem; color: #666; font-size: 0.85rem;">Add to Home Screen: Android Chrome menu → Install app &nbsp;|&nbsp; iPhone Share → Add to Home Screen</div>
+  <a href="/" class="back-link" style="margin-top: 0.5rem;">Load PET Survey Form</a>
+  <a href="#" id="install-link" class="back-link" style="margin-top: 0.5rem; display: none;">Add to Home Screen</a>
+  <span id="install-text" class="back-link" style="margin-top: 0.5rem; color: #666; font-size: 0.85rem;">Add to Home Screen: Android Chrome menu → Install app &nbsp;|&nbsp; iPhone Share → Add to Home Screen</span>
 </div>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js");
+}
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const link = document.getElementById("install-link");
+  const text = document.getElementById("install-text");
+  if (link && text) {
+    link.style.display = "block";
+    text.style.display = "none";
+    link.onclick = async (ev) => {
+      ev.preventDefault();
+      deferredPrompt.prompt();
+      const result = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      link.style.display = "none";
+    };
+  }
+});
+</script>
 </body>
 </html>
