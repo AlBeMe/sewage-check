@@ -5,6 +5,10 @@ from check_sewage import check_location
 app = Flask(__name__)
 
 
+@app.route("/sw.js")
+def sw():
+    return app.send_static_file("sw.js")
+
 @app.route("/")
 def index():
     last_location = request.cookies.get("last_location", "")
