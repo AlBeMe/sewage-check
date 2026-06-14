@@ -34,9 +34,11 @@
     <button type="submit">Check</button>
   </form>
   <div class="instructions">
+    <div id="install-section">
     <p><strong>Add to Home Screen</strong><br>
     <a href="#" id="install-link" style="display:none; color:#007bff;">Install App</a>
     <span id="install-text" style="font-size:0.85rem;">Android: Chrome menu → Install app &nbsp;|&nbsp; iPhone: Share → Add to Home Screen</span></p>
+    </div>
 
     <p><strong>Search with a postcode</strong><br>
     Postcode: e.g. SN8 2BG or SN82BG (space optional)</p>
@@ -55,6 +57,10 @@
   </div>
 </div>
 <script>
+const installSection = document.getElementById("install-section");
+if (localStorage.getItem("installed")) {
+  installSection.style.display = "none";
+}
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js");
 }
@@ -73,6 +79,10 @@ window.addEventListener("beforeinstallprompt", (e) => {
       const result = await deferredPrompt.userChoice;
       deferredPrompt = null;
       link.style.display = "none";
+      if (result.outcome === "accepted") {
+        localStorage.setItem("installed", "1");
+        installSection.style.display = "none";
+      }
     };
   }
 });
