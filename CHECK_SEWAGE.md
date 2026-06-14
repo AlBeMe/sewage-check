@@ -22,19 +22,13 @@ This mobile-friendly web app checks Thames Water sewage overflow (EDM) discharge
 
 Your location and radius are saved in a browser cookie. Next time you visit the page, the form is already filled in — just tap **Check** again.
 
-### Add to home screen (optional)
+### Install as an app
 
-For one-tap access from your phone:
+The site is a Progressive Web App (PWA). Install it on your home screen and it opens full-screen with no browser chrome — just like a real app.
 
-**iPhone (Safari):**
-1. Tap the Share button (square with arrow)
-2. Scroll down and tap **Add to Home Screen**
-3. Name it "e.g. Sewage" and tap **Add**
+**Android (Chrome):** A banner may appear suggesting installation. Or tap the three-dot menu → **Install app** → **Install**. The home screen icon is a green square with a poop emoji.
 
-**Android (Chrome):**
-1. Tap the three-dot menu
-2. Tap **Add to Home screen**
-3. Name it and tap **Add**
+**iPhone (Safari):** Tap Share (square with arrow) → **Add to Home Screen** → name it → **Add**.
 
 ### Getting coordinates from Google Maps
 
